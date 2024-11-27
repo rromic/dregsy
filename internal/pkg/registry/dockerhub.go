@@ -27,20 +27,18 @@ import (
 	"github.com/xelalexv/dregsy/internal/pkg/auth"
 )
 
-//
 type DHRepoList struct {
-	Items    []DHRepoDescriptor `json:"results",required`
-	NextPage string             `json:"next",omitempty`
+	Items    []DHRepoDescriptor `json:"results" required:"true"`
+	NextPage string             `json:"next" omitempty:"true"`
 }
 
-//
 type DHRepoDescriptor struct {
-	User        string `json:"user",required`
-	Name        string `json:"name",required`
-	Namespace   string `json:"namespace",required`
-	Type        string `json:"repository_type",required`
-	Description string `json:"description",omitempty`
-	IsPrivate   bool   `json:"is_private",omitempty`
+	User        string `json:"user" required:"true"`
+	Name        string `json:"name" required:"true"`
+	Namespace   string `json:"namespace" required:"true"`
+	Type        string `json:"repository_type" required:"true"`
+	Description string `json:"description,omitempty"`
+	IsPrivate   bool   `json:"is_private,omitempty"`
 
 	// additional fields; include later on if needed
 	//
@@ -55,17 +53,14 @@ type DHRepoDescriptor struct {
 	// affiliation 			string
 }
 
-//
 func newDockerhub(creds *auth.Credentials) ListSource {
 	return &dockerhub{creds: creds}
 }
 
-//
 type dockerhub struct {
 	creds *auth.Credentials
 }
 
-//
 func (d *dockerhub) Retrieve(maxItems int) ([]string, error) {
 
 	var err error
@@ -89,6 +84,9 @@ func (d *dockerhub) Retrieve(maxItems int) ([]string, error) {
 
 	for {
 		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("JWT %s", token.Raw()))
 
@@ -118,13 +116,11 @@ func (d *dockerhub) Retrieve(maxItems int) ([]string, error) {
 	}
 }
 
-//
 func (d *dockerhub) Ping() error {
 	_, err := d.getToken()
 	return err
 }
 
-//
 func (d *dockerhub) getToken() (*auth.Token, error) {
 
 	log.Debug("getting token")

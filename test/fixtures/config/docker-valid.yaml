@@ -2,7 +2,7 @@ relay: docker
 
 docker:
   dockerhost: unix:///var/run/docker.sock
-  api-version: 1.24
+  api-version: 1.46
 
 lister:
   maxItems: 50

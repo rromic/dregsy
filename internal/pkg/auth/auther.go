@@ -23,10 +23,8 @@ import (
 	"strings"
 )
 
-//
 type Auther func(*Credentials) string
 
-//
 func BasicAuth(c *Credentials) string {
 	if c.Empty() {
 		return ""
@@ -34,7 +32,6 @@ func BasicAuth(c *Credentials) string {
 	return base64Encode(fmt.Sprintf("%s:%s", c.username, c.password))
 }
 
-//
 func BasicAuthJSON(c *Credentials) string {
 	if c.Empty() {
 		return ""
@@ -43,18 +40,15 @@ func BasicAuthJSON(c *Credentials) string {
 		`{"username": "%s", "password": "%s"}`, c.username, c.password))
 }
 
-//
 func base64Encode(auth string) string {
-	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(auth)))
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-//
 type jsonCreds struct {
 	User string `json:"username"`
 	Pass string `json:"password"`
 }
 
-//
 func decode(auth string) (*Credentials, error) {
 
 	data, err := base64.StdEncoding.DecodeString(auth)

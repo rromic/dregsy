@@ -14,20 +14,26 @@
 # limitations under the License.
 #
 
+ARG GO_VERSION=1.23.3
+
+# Use the Go version in the first stage
+FROM golang:${GO_VERSION}-alpine AS go-builder
+
 FROM xelalex/dregsy:latest-alpine
 
 # install & configure Go
-RUN apk add --no-cache go
-ENV GOROOT /usr/lib/go
-ENV GOPATH /go
-ENV GOCACHE /.cache
-ENV PATH /go/bin:${PATH}
+# Copy Go from the builder stage
+COPY --from=go-builder /usr/local/go/ /usr/local/go/
+ENV GOROOT=/usr/local/go/
+ENV GOPATH=/go
+ENV GOCACHE=/.cache
+ENV PATH=${GOROOT}/bin:${GOPATH}/bin:${PATH}
 RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin ${GOPATH}/pkg ${GOCACHE}
 
 # non-root user
 ARG USER=go
-ENV HOME /home/${USER}
-RUN apk add --update sudo
+ENV HOME=/home/${USER}
+RUN apk add --update sudo --no-cache
 RUN adduser -D ${USER} && \
     adduser ${USER} ping && \
     echo "${USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${USER} && \

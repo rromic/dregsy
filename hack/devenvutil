@@ -106,7 +106,7 @@ function apply_shell_expansion {
 #
 #
 function registry_up {
-    docker run -d --rm -p 5000:5000 --name dregsy-test-registry registry:2
+    docker run -d --rm -p 5001:5000 --name dregsy-test-registry registry:2
 }
 
 #
@@ -132,11 +132,15 @@ function remove_test_images {
 
     local list=()
     for ref in "$@"; do
-        readarray -d ' ' -t -O ${#list[@]} list \
-            < <(docker images -q --filter=reference="${ref}")
+      while IFS= read -r image_id; do
+          list+=("$image_id")
+      done < <(docker images -q --filter=reference="${ref}")
     done
 
-    readarray -t list < <(echo -n "${list[@]}" | sort | uniq)
+    list=()
+    while IFS= read -r item; do
+        sorted_unique_list+=("$item")
+    done < <(echo "${list[@]}" | tr ' ' '\n' | sort | uniq)
 
     for img in "${list[@]}"; do
         docker rmi -f "${img}"
@@ -165,9 +169,9 @@ function build_binary {
     docker run --rm --user "$(id -u):$(id -g)" \
         -v "${ROOT}/${BINARIES}:/go/bin" ${CACHE_VOLS} \
         -v "${ROOT}:/go/src/${REPO}" -w "/go/src/${REPO}" \
-        -e CGO_ENABLED=0 -e GOOS="$2" -e GOARCH="$3" ${extra_env} \
+        -e HOME="/tmp" -e GIT_CONFIG="/tmp/.gitconfig" -e CGO_ENABLED=0 -e GOOS="$2" -e GOARCH="$3" ${extra_env} \
         ${GO_IMAGE}@sha256:${!digest_ref} bash -c \
-            "go mod tidy && go build -v -tags netgo -installsuffix netgo \
+            "git config --add safe.directory /go/src/${REPO} && go mod tidy && go build -v -tags netgo -installsuffix netgo \
             -ldflags \"-w -X main.DregsyVersion=${DREGSY_VERSION}\" \
             -o \"${binary}\" \"./cmd/$1/\""
 
@@ -191,7 +195,7 @@ function run_tests {
         -v "${ROOT}/${BINARIES}:/go/bin" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         ${CACHE_VOLS} ${GCP_CREDS} \
-        -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=amd64 \
+        -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=${GOARCH} \
         -e LOG_LEVEL=debug -e LOG_FORMAT=text -e LOG_FORCE_COLORS=true \
         --env-file <(sed -E 's/\ +=\ +/=/g' "${ROOT}/.makerc") \
         "xelalex/${REPO}-tests-$1" sh -c "\

@@ -19,7 +19,7 @@ SHELL = /bin/bash
 
 REPO = dregsy
 DREGSY_VERSION = $(shell git describe --always --tag --dirty)
-SKOPEO_VERSION = v1.14.1 # https://github.com/containers/skopeo/releases
+SKOPEO_VERSION = v1.17.0 # https://github.com/containers/skopeo/releases
 
 ROOT = $(shell pwd)
 BUILD_OUTPUT =_build
@@ -27,12 +27,13 @@ BINARIES = $(BUILD_OUTPUT)/bin
 ISOLATED_PKG = $(BUILD_OUTPUT)/pkg
 ISOLATED_CACHE = $(BUILD_OUTPUT)/cache
 
-GO_IMAGE = docker.io/golang:1.21.6
+GO_VERSION = 1.23.3
+GO_IMAGE = docker.io/golang:$(GO_VERSION)
 # use digests of plain golang:{x:y:z} image
-GO_IMAGE_DIGEST_amd64 = 5c7c2c9f1a930f937a539ff66587b6947890079470921d62ef1a6ed24395b4b3 # linux/amd64
-GO_IMAGE_DIGEST_arm64 = ea3f343e515dd6d4c39e82757c186040f2838ea91e935670433b0849f0813ab5 # linux/arm64/v8
-GO_IMAGE_DIGEST_arm = fb3420044a05d239f768b02fde6c987729379b631f44f27c917880fe3d632c7b   # linux/arm/v7
-GO_IMAGE_DIGEST_386 = 7fd31c31aab449c1cc9a6a4cd498ab20a018de2f64b7ed151bcef3305270dee5   # linux/386
+GO_IMAGE_DIGEST_amd64 = f61a48f4e7063c15eb9abf8cdd8077aab743fbe0d933f40c1b42d7868afe855d # linux/amd64
+GO_IMAGE_DIGEST_arm64 = 15b0073131e5f3dc0cb9e94007709581e991ca21cd4b2471c5a756012f8ec98a # linux/arm64/v8
+GO_IMAGE_DIGEST_arm = de503d2bc5abb47cf217ff55c9323e4b41019c16a44b6f453a7cb36241c5118a   # linux/arm/v7
+GO_IMAGE_DIGEST_386 = 4e00ae6cc6f1798921aeb99f9c606e7abe42b394b84c4e07c0313bce43778826   # linux/386
 
 GOOS = $(shell uname -s | tr A-Z a-z)
 GOARCH = $(shell ./hack/devenvutil get_architecture)
@@ -177,7 +178,7 @@ else
 	$(call utils, build_binary dregsy linux arm)
 	$(call utils, build_binary dregsy linux 386)
 endif
-	unzip -q $(BINARIES)/dregsy_*_linux_amd64.zip -d $(BINARIES) 2>/dev/null \
+	unzip -q $(BINARIES)/dregsy_*.zip -d $(BINARIES) 2>/dev/null \
 		|| true
 	cd $(BINARIES); sha256sum dregsy_*.zip > checksums.txt
 
@@ -191,6 +192,7 @@ imgdregsy:
 	docker build -t xelalex/$(REPO):latest-alpine \
 		--build-arg binaries=$(BINARIES) \
 		--build-arg SKOPEO_VERSION=$(SKOPEO_VERSION) \
+		--build-arg GO_VERSION=$(GO_VERSION) \
 		-f ./hack/dregsy.alpine.Dockerfile .
 	# for historical reasons, the `xelalex/dregsy` image is the Alpine image
 	docker tag xelalex/$(REPO):latest-alpine xelalex/$(REPO):latest
@@ -198,6 +200,7 @@ imgdregsy:
 	docker build -t xelalex/$(REPO):latest-ubuntu \
 		--build-arg binaries=$(BINARIES) \
 		--build-arg SKOPEO_VERSION=$(SKOPEO_VERSION) \
+		--build-arg GO_VERSION=$(GO_VERSION) \
 		-f ./hack/dregsy.ubuntu.Dockerfile .
 	echo -e "\nDone\n"
 
@@ -209,9 +212,11 @@ imgtests:
 #
 	echo -e "\nBuilding Alpine-based test image...\n"
 	docker build -t xelalex/$(REPO)-tests-alpine \
+		--build-arg GO_VERSION=$(GO_VERSION) \
 		-f ./hack/tests.alpine.Dockerfile .
 	echo -e "\n\nBuilding Ubuntu-based test image...\n"
 	docker build -t xelalex/$(REPO)-tests-ubuntu \
+		--build-arg GO_VERSION=$(GO_VERSION) \
 		-f ./hack/tests.ubuntu.Dockerfile .
 	echo -e "\nDone\n"
 
@@ -246,13 +251,13 @@ ifeq ($(TEST_ALPINE),y)
 	$(call utils, remove_test_images $(TEST_CLEANUP)) > /dev/null
 	docker image prune --force
 	$(call utils, registry_restart)
-	$(call utils, run_tests alpine)
+	$(call utils, run_tests alpine $(GOARCH))
 endif
 ifeq ($(TEST_UBUNTU),y)
 	$(call utils, remove_test_images $(TEST_CLEANUP)) > /dev/null
 	docker image prune --force
 	$(call utils, registry_restart)
-	$(call utils, run_tests ubuntu)
+	$(call utils, run_tests ubuntu $(GOARCH))
 endif
 
 

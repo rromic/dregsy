@@ -18,7 +18,7 @@ package sync
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -33,11 +33,9 @@ import (
 	"github.com/xelalexv/dregsy/internal/pkg/util"
 )
 
-//
 const minimumTaskInterval = 30
 const minimumAuthRefreshInterval = time.Hour
 
-//
 type SyncConfig struct {
 	Relay      string              `yaml:"relay"`
 	Docker     *docker.RelayConfig `yaml:"docker"`
@@ -52,7 +50,6 @@ type SyncConfig struct {
 	sha1   []byte
 }
 
-//
 func (c *SyncConfig) ValidateSupport(s relays.Support) error {
 
 	for _, t := range c.Tasks {
@@ -66,7 +63,6 @@ func (c *SyncConfig) ValidateSupport(s relays.Support) error {
 	return nil
 }
 
-//
 func (c *SyncConfig) validate() error {
 
 	if c.Watch == nil {
@@ -149,7 +145,6 @@ Note: Automatic restart after config file change is currently off by default. Yo
 	return nil
 }
 
-//
 func (c *SyncConfig) watch() (*fsnotify.Watcher, error) {
 
 	watch, err := fsnotify.NewWatcher()
@@ -193,7 +188,6 @@ func (c *SyncConfig) watch() (*fsnotify.Watcher, error) {
 	return watch, nil
 }
 
-//
 func (c *SyncConfig) isChanged(evt fsnotify.Event) bool {
 
 	log.WithFields(
@@ -238,10 +232,9 @@ func (c *SyncConfig) isChanged(evt fsnotify.Event) bool {
 	return true
 }
 
-//
 func LoadConfig(file string) (*SyncConfig, error) {
 
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 
 	if err != nil {
 		return nil, fmt.Errorf("error loading config file '%s': %v", file, err)
@@ -260,13 +253,11 @@ func LoadConfig(file string) (*SyncConfig, error) {
 	return config, nil
 }
 
-//
 type ListerConfig struct {
 	MaxItems      int           `yaml:"maxItems"`
 	CacheDuration time.Duration `yaml:"cacheDuration"`
 }
 
-//
 func (c *ListerConfig) validate() error {
 
 	if c == nil {

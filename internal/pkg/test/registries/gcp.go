@@ -17,13 +17,12 @@
 package registries
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"testing"
 
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
 	gcrauth "github.com/google/go-containerregistry/pkg/authn"
@@ -34,13 +33,11 @@ import (
 	"github.com/xelalexv/dregsy/internal/pkg/test"
 )
 
-//
 type manifest struct {
 	Digest string
 	Info   gcrgoogle.ManifestInfo
 }
 
-//
 func SkipIfGCPNotConfigured(t *testing.T, gcr, gar bool) {
 
 	var missing []string
@@ -66,7 +63,6 @@ func SkipIfGCPNotConfigured(t *testing.T, gcr, gar bool) {
 	}
 }
 
-//
 func EmptyGCRRepo(t *testing.T, p *test.Params) {
 	repo, err := gcrname.NewRepository(
 		fmt.Sprintf("%s/%s/%s", p.GCRHost, p.GCRProject, p.GCRImage))
@@ -76,7 +72,6 @@ func EmptyGCRRepo(t *testing.T, p *test.Params) {
 	emptyGCPRepo(t, repo)
 }
 
-//
 func EmptyGARRepo(t *testing.T, p *test.Params) {
 	repo, err := gcrname.NewRepository(
 		fmt.Sprintf("%s/%s/%s", p.GARHost, p.GARProject, p.GARImage))
@@ -90,7 +85,7 @@ func EmptyGARRepo(t *testing.T, p *test.Params) {
 // TODO: find out how to remove the repo
 func emptyGCPRepo(t *testing.T, repo gcrname.Repository) {
 
-	b, err := ioutil.ReadFile(os.Getenv(test.EnvGCPCreds))
+	b, err := os.ReadFile(os.Getenv(test.EnvGCPCreds))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +96,7 @@ func emptyGCPRepo(t *testing.T, repo gcrname.Repository) {
 		t.Fatal(err)
 	}
 
-	token, err := conf.TokenSource(oauth2.NoContext).Token()
+	token, err := conf.TokenSource(context.TODO()).Token()
 	if err != nil {
 		t.Fatal(err)
 	}

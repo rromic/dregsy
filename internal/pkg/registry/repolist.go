@@ -26,20 +26,17 @@ import (
 	"github.com/xelalexv/dregsy/internal/pkg/auth"
 )
 
-//
 const defaultListerMaxItems = 100
 const defaultListerCacheDuration = time.Hour
 
-//
 type ListSourceType string
 
 const (
 	Catalog   ListSourceType = "catalog"
-	DockerHub                = "dockerhub"
-	Index                    = "index"
+	DockerHub ListSourceType = "dockerhub"
+	Index     ListSourceType = "index"
 )
 
-//
 func (t ListSourceType) IsValid() bool {
 	switch t {
 	case Catalog, DockerHub, Index:
@@ -48,13 +45,11 @@ func (t ListSourceType) IsValid() bool {
 	return false
 }
 
-//
 type ListSource interface {
 	Ping() error
 	Retrieve(maxItems int) ([]string, error)
 }
 
-//
 func NewRepoList(registry string, insecure bool, typ ListSourceType,
 	config map[string]string, creds *auth.Credentials) (*RepoList, error) {
 
@@ -121,7 +116,6 @@ func NewRepoList(registry string, insecure bool, typ ListSourceType,
 	return list, nil
 }
 
-//
 type RepoList struct {
 	registry      string
 	source        ListSource
@@ -131,24 +125,20 @@ type RepoList struct {
 	repos         []string
 }
 
-//
 func (l *RepoList) SetMaxItems(max int) {
 	l.maxItems = max
 }
 
-//
 func (l *RepoList) SetCacheDuration(d time.Duration) {
 	l.cacheDuration = d
 	l.expiry = time.Now()
 	l.repos = nil
 }
 
-//
 func (l *RepoList) isCacheValid() bool {
 	return time.Now().Before(l.expiry)
 }
 
-//
 func (l *RepoList) cacheList(repos []string) {
 	if l.cacheDuration > 0 {
 		log.Debug("caching repository list")
@@ -159,7 +149,6 @@ func (l *RepoList) cacheList(repos []string) {
 	}
 }
 
-//
 func (l *RepoList) Get() ([]string, error) {
 
 	if l.isCacheValid() {

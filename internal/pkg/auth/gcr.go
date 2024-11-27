@@ -17,33 +17,28 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
-//
-const gcp_metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+const gcpMetadataUrl = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 
-//
 func NewGCRAuthRefresher() Refresher {
 	return &gcrAuthRefresher{}
 }
 
-//
 type gcrAuthRefresher struct {
 	expiry time.Time
 }
 
-//
 func (rf *gcrAuthRefresher) Refresh(creds *Credentials) error {
 
 	log.WithField("expiry", rf.expiry).Debug("GCR auth refresh")
@@ -83,9 +78,8 @@ func (rf *gcrAuthRefresher) Refresh(creds *Credentials) error {
 	return nil
 }
 
-//
 func hasGoogleMetadataServer() bool {
-	req, err := http.NewRequest("HEAD", gcp_metadata_url, nil)
+	req, err := http.NewRequest("HEAD", gcpMetadataUrl, nil)
 	if err != nil {
 		return false
 	}
@@ -101,10 +95,9 @@ func hasGoogleMetadataServer() bool {
 	return resp.Header.Get("Metadata-Flavor") == "Google"
 }
 
-//
 func gcpTokenFromCreds() (string, time.Time, error) {
 
-	b, err := ioutil.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	b, err := os.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -115,7 +108,7 @@ func gcpTokenFromCreds() (string, time.Time, error) {
 		return "", time.Time{}, err
 	}
 
-	token, err := conf.TokenSource(oauth2.NoContext).Token()
+	token, err := conf.TokenSource(context.TODO()).Token()
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -123,17 +116,15 @@ func gcpTokenFromCreds() (string, time.Time, error) {
 	return token.AccessToken, token.Expiry, nil
 }
 
-//
 type GCPTokenResponse struct {
 	AccessToken string         `json:"access_token"`
 	ExpiresIn   *time.Duration `json:"expires_in"`
 	TokenType   string         `json:"token_type"`
 }
 
-//
 func gcpTokenFromMetadata() (string, time.Time, error) {
 
-	req, err := http.NewRequest("GET", gcp_metadata_url, nil)
+	req, err := http.NewRequest("GET", gcpMetadataUrl, nil)
 	if err != nil {
 		return "", time.Time{}, err
 	}

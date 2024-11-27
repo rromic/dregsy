@@ -28,13 +28,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//
 const DigestPrefix = "sha256:"
 
 const FormatDigest = "%s@%s"
 const FormatName = "%s:%s"
 
-//
 func SplitRef(ref string) (reg, repo, tag string) {
 
 	ix := strings.Index(ref, "/")
@@ -92,12 +90,10 @@ func IsDigest(d string) bool {
 	return strings.HasPrefix(d, DigestPrefix)
 }
 
-//
 func SplitTag(tag string) (name, digest string) {
 
-	if strings.HasPrefix(tag, ":") {
-		tag = tag[1:]
-	}
+	tag = strings.TrimPrefix(tag, ":")
+
 	if tag == "" {
 		return
 	}
@@ -116,7 +112,6 @@ func SplitTag(tag string) (name, digest string) {
 	return
 }
 
-//
 func JoinTag(name, digest string) string {
 	if digest == "" {
 		return name
@@ -127,7 +122,6 @@ func JoinTag(name, digest string) string {
 	return fmt.Sprintf(FormatDigest, name, digest)
 }
 
-//
 func SplitPlatform(p string) (os, arch, variant string) {
 
 	ix := strings.Index(p, "/")
@@ -162,14 +156,13 @@ func JoinRefAndTag(ref, tag string) string {
 // JoinRefsAndTag joins the source and target ref for a sync action each with
 // tag, according to these rules:
 //
-// - If tag contains a digest, srcRef is joined with only the digest as tag, and
-//   trgtRef with either only the name part of tag (if present), or the digest.
+//   - If tag contains a digest, srcRef is joined with only the digest as tag, and
+//     trgtRef with either only the name part of tag (if present), or the digest.
 //
 // - Otherwise, srcRef and trgtRef are joined with tag.
 //
 // This ensures that if a digest is present, we always use that when pulling an
 // image, but still use the name if present when pushing.
-//
 func JoinRefsAndTag(srcRef, trgtRef, tag string) (src, trgt string) {
 	if name, digest := SplitTag(tag); digest != "" {
 		src = fmt.Sprintf(FormatDigest, srcRef, digest)
@@ -185,13 +178,11 @@ func JoinRefsAndTag(srcRef, trgtRef, tag string) (src, trgt string) {
 	return
 }
 
-//
 type creds struct {
 	Username string
 	Password string
 }
 
-//
 func DecodeJSONAuth(authBase64 string) string {
 
 	if authBase64 == "" {
@@ -213,7 +204,6 @@ func DecodeJSONAuth(authBase64 string) string {
 	return fmt.Sprintf("%s:%s", ret.Username, ret.Password)
 }
 
-//
 func ComputeSHA1(file string) ([]byte, error) {
 
 	f, err := os.Open(file)
@@ -232,7 +222,6 @@ func ComputeSHA1(file string) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-//
 func CompareSHA1(a, b []byte) bool {
 
 	if len(a) != len(b) {

@@ -20,21 +20,21 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	imageType "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"github.com/xelalexv/dregsy/internal/pkg/util"
 )
 
-//
 type image struct {
 	id   string
 	reg  string
@@ -42,17 +42,14 @@ type image struct {
 	tags []string
 }
 
-//
 func (s *image) ref() string {
 	return fmt.Sprintf("%s/%s", s.reg, s.repo)
 }
 
-//
 func (s *image) refWithTags() string {
 	return fmt.Sprintf("%s/%s:%v", s.reg, s.repo, s.tags)
 }
 
-//
 type dockerClient struct {
 	host    string
 	version string
@@ -61,7 +58,6 @@ type dockerClient struct {
 	wrOut   io.Writer
 }
 
-//
 func newClient(host, version string, out io.Writer) (*dockerClient, error) {
 	dc := &dockerClient{
 		host:    host,
@@ -75,7 +71,6 @@ func newClient(host, version string, out io.Writer) (*dockerClient, error) {
 	return dc, e
 }
 
-//
 func newEnvClient() (*dockerClient, error) {
 	dc := &dockerClient{
 		env:   true,
@@ -85,19 +80,23 @@ func newEnvClient() (*dockerClient, error) {
 	return dc, err
 }
 
-//
 func (dc *dockerClient) open() (err error) {
 	if dc.client == nil {
 		if dc.env {
-			dc.client, err = client.NewEnvClient()
+			dc.client, err = client.NewClientWithOpts()
 		} else {
-			dc.client, err = client.NewClient(dc.host, dc.version, nil, nil)
+			dc.client, err = client.NewClientWithOpts(
+				client.WithHost(dc.host),
+				client.WithVersion(dc.version),
+				client.WithHTTPClient(nil),
+				client.WithHTTPHeaders(nil),
+				client.WithAPIVersionNegotiation(),
+			)
 		}
 	}
 	return
 }
 
-//
 func (dc *dockerClient) ping(attempts int, sleep time.Duration) (
 	res types.Ping, err error) {
 
@@ -116,7 +115,6 @@ func (dc *dockerClient) ping(attempts int, sleep time.Duration) (
 		attempts, err)
 }
 
-//
 func (dc *dockerClient) close() error {
 	if dc.client != nil {
 		return dc.client.Close()
@@ -124,12 +122,11 @@ func (dc *dockerClient) close() error {
 	return nil
 }
 
-//
 func (dc *dockerClient) listImages(ref string) (list []*image, err error) {
 
 	log.WithField("ref", ref).Debug("listing images")
 	imgs, err := dc.client.ImageList(
-		context.Background(), types.ImageListOptions{})
+		context.Background(), imageType.ListOptions{})
 	if err != nil {
 		return
 	}
@@ -182,7 +179,6 @@ func (dc *dockerClient) listImages(ref string) (list []*image, err error) {
 	return
 }
 
-//
 func match(filterReg, filterRepo, filterTag, ref string) (bool, error) {
 
 	if ref == "<none>:<none>" || ref == "<none>@<none>" {
@@ -207,10 +203,9 @@ func match(filterReg, filterRepo, filterTag, ref string) (bool, error) {
 		(filterTag == "" || filterTag == tag), nil
 }
 
-//
 func (dc *dockerClient) pullImage(ref string, allTags bool, platform, auth string,
 	verbose bool) error {
-	opts := &types.ImagePullOptions{
+	opts := &imageType.PullOptions{
 		All:          allTags,
 		RegistryAuth: auth,
 		Platform:     platform,
@@ -219,27 +214,38 @@ func (dc *dockerClient) pullImage(ref string, allTags bool, platform, auth strin
 	return dc.handleLog(rc, err, verbose)
 }
 
-//
 func (dc *dockerClient) pushImage(image string, allTags bool, platform, auth string,
 	verbose bool) error {
 
-	opts := &types.ImagePushOptions{
+	os, arch, variant := util.SplitPlatform(platform)
+
+	platformSpec := &v1.Platform{}
+
+	if os != "" {
+		platformSpec.OS = os
+	}
+
+	if arch != "" {
+		platformSpec.Architecture = arch
+	}
+
+	if variant != "" {
+		platformSpec.Variant = variant
+	}
+
+	opts := &imageType.PushOptions{
 		All:          allTags,
 		RegistryAuth: auth,
-		// NOTE: Platform currently does not seem to be used by
-		//       the Docker client lib
-		Platform: platform,
+		Platform:     platformSpec,
 	}
 	rc, err := dc.client.ImagePush(context.Background(), image, *opts)
 	return dc.handleLog(rc, err, verbose)
 }
 
-//
 func (dc *dockerClient) tagImage(source, target string) error {
 	return dc.client.ImageTag(context.Background(), source, target)
 }
 
-//
 func (dc *dockerClient) handleLog(rc io.ReadCloser, err error, verbose bool) error {
 
 	if err != nil {
@@ -248,10 +254,10 @@ func (dc *dockerClient) handleLog(rc io.ReadCloser, err error, verbose bool) err
 	defer rc.Close()
 	out := dc.wrOut
 	if !verbose {
-		out = ioutil.Discard
+		out = io.Discard
 	}
 	terminalFd := os.Stdout.Fd()
-	isTerminal := dc.wrOut == os.Stdout && terminal.IsTerminal(int(terminalFd))
+	isTerminal := dc.wrOut == os.Stdout && term.IsTerminal(int(terminalFd))
 	return jsonmessage.DisplayJSONMessagesStream(
 		rc, out, terminalFd, isTerminal, nil)
 }

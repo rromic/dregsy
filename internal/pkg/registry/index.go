@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	types "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
 
 	"github.com/xelalexv/dregsy/internal/pkg/auth"
 )
 
-//
 func newIndex(reg, filter string, insecure bool, creds *auth.Credentials) ListSource {
 
 	ret := &index{filter: filter}
@@ -54,14 +54,12 @@ func newIndex(reg, filter string, insecure bool, creds *auth.Credentials) ListSo
 	return ret
 }
 
-//
 type index struct {
 	opts   *registry.ServiceOptions
 	auth   *types.AuthConfig
 	filter string
 }
 
-//
 func (i *index) Retrieve(maxItems int) ([]string, error) {
 
 	svc, err := registry.NewService(*i.opts)
@@ -69,22 +67,26 @@ func (i *index) Retrieve(maxItems int) ([]string, error) {
 		return nil, err
 	}
 
+	searchFilters := filters.NewArgs()
+
+	term := "dregsy"
+	authConfig := i.auth
+	headers := make(map[string][]string)
+
 	// FIXME: consider using token
-	res, err := svc.Search(
-		context.TODO(), i.filter, maxItems, i.auth, "dregsy", nil)
+	res, err := svc.Search(context.TODO(), searchFilters, term, maxItems, authConfig, headers)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]string, 0, res.NumResults)
-	for _, r := range res.Results {
+	ret := make([]string, 0, len(res))
+	for _, r := range res {
 		ret = append(ret, r.Name)
 	}
 
 	return ret, nil
 }
 
-//
 func (i *index) Ping() error {
 	svc, err := registry.NewService(*i.opts)
 	if err != nil {
@@ -96,14 +98,12 @@ func (i *index) Ping() error {
 	return nil
 }
 
-//
 func isDockerHub(reg string) bool {
 	return reg == "" || reg == "docker.com" || reg == "docker.io" ||
 		strings.HasSuffix(reg, ".docker.com") ||
 		strings.HasSuffix(reg, ".docker.io")
 }
 
-//
 func IsGCR(reg string) bool {
 	return reg == "gcr.io" || strings.HasSuffix(reg, ".gcr.io")
 }

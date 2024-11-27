@@ -14,24 +14,21 @@
 # limitations under the License.
 #
 
+ARG GO_VERSION=1.23.3
+
+# Use the Go version in the first stage
+FROM golang:${GO_VERSION} AS go-builder
+
 FROM xelalex/dregsy:latest-ubuntu
 
 # install & configure Go
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --fix-missing \
-        golang && \
-    apt-get clean -y && \
-    rm -rf \
-        /var/cache/debconf/* \
-        /var/lib/apt/lists/* \
-        /var/log/* \
-        /tmp/* \
-        /var/tmp/*
+# Copy Go from the builder stage
+COPY --from=go-builder /usr/local/go/ /usr/lib/go/
 
-ENV GOROOT /usr/lib/go
-ENV GOPATH /go
-ENV GOCACHE /.cache
-ENV PATH /go/bin:${PATH}
+ENV GOROOT=/usr/lib/go
+ENV GOPATH=/go
+ENV GOCACHE=/.cache
+ENV PATH=${GOROOT}/bin:${PATH}
 RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin ${GOPATH}/pkg ${GOCACHE}
 
 # non-root user
@@ -39,7 +36,7 @@ ARG USER=go
 RUN groupadd -g ${GROUP_ID:-1000} ${USER} && \
     useradd -l -u ${USER_ID:-1000} -g ${USER} ${USER} && \
     install -d -m 0755 -o ${USER} -g ${USER} /home/${USER}
-ENV HOME /home/${USER}
+ENV HOME=/home/${USER}
 USER ${USER}
 
 WORKDIR ${GOPATH}
